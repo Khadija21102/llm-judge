@@ -66,13 +66,11 @@ def tokenize_and_format(example: Dict[str, Any], tokenizer: AutoTokenizer):
 
     score = example[cfg.output_field]
 
-    # Expect a single scalar (int/float). If it's a list, take the first or raise.
+    # Expect a single scalar (int/float)
     if isinstance(score, list):
-        # You can choose to take the first element instead:
-        # score = score[0]
         raise ValueError(f"Expected a single score, got list: {score}")
 
-    enc["labels"] = float(score)  # HF will make this a float tensor
+    enc["labels"] = float(score)  
     return enc
 
 
@@ -125,7 +123,6 @@ if __name__ == "__main__":
             bnb_4bit_use_double_quant=True,
         )
 
-    # dtype: bf16 only if CUDA is available, otherwise float32
     use_bf16 = torch.cuda.is_available()
 
     model = AutoModelForSequenceClassification.from_pretrained(
@@ -171,14 +168,12 @@ if __name__ == "__main__":
         logging_steps=args.logging_steps,
         save_steps=args.save_steps,
         save_total_limit=2,
-        bf16=use_bf16,                # only true on GPU
-        fp16=False,                   # you can flip this if you actually want fp16
+        bf16=use_bf16,                
+        fp16=False,                   
         eval_steps=args.save_steps if eval_strategy == "steps" else None,
         report_to="none",
         gradient_checkpointing=True,
         dataloader_num_workers=4,
-        # Uncomment if your transformers version supports it:
-        # evaluation_strategy=eval_strategy,
     )
 
     trainer = Trainer(
