@@ -57,8 +57,6 @@ def tokenize_and_format(example: Dict[str, Any], tokenizer: AutoTokenizer):
         padding="max_length",
     )
 
-    # labels are not strictly needed for just prediction,
-    # but including them allows Trainer.evaluate to compute metrics.
     scores = example.get(cfg.output_field, None)
     if scores is not None:
         if not isinstance(scores, list) or len(scores) != cfg.num_tasks:
@@ -73,7 +71,7 @@ def tokenize_and_format(example: Dict[str, Any], tokenizer: AutoTokenizer):
                 s_int = cfg.num_classes
             labels.append(s_int - 1)  # shift 1–5 -> 0–4
 
-        enc["labels"] = labels  # (3,)
+        enc["labels"] = labels 
 
     return enc
 
@@ -98,17 +96,15 @@ class MultiTaskMistralClassifier(PreTrainedModel):
         self.num_tasks = getattr(config, "num_tasks", 3)
         self.num_classes = getattr(config, "num_classes", 5)
 
-        # base Mistral
+        
         self.model = AutoModel.from_config(config)
-        #hidden_size = config.hidden_size
-        # robust hidden size inference (works across Gemma/Llama/Mistral/etc.)
+   
         hidden_size = getattr(config, "hidden_size", None)
         if hidden_size is None:
             hidden_size = getattr(config, "d_model", None)
         if hidden_size is None:
             hidden_size = getattr(config, "dim", None)
         if hidden_size is None:
-    # last resort: read from embeddings
             emb = self.model.get_input_embeddings()
             if emb is None or not hasattr(emb, "weight"):
                 raise ValueError("Could not infer hidden size: no config field and no input embeddings.")
