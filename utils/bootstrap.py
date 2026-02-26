@@ -7,10 +7,10 @@ Bootstrap test for ICC difference between two LLM-as-a-judge models vs clinician
 This script:
 1) Loads clinician ratings and aggregates to clinician_mean per sample (Answer key)
 2) Loads Claude judge outputs and parses 3 rubric scores -> claude_mean per sample
-3) Loads Meditron judge outputs and parses "Score" -> meditron_mean per sample
+3) Loads model judge outputs and parses "Score" -> model_mean per sample
 4) Merges on Answer (must match across files)
-5) Computes ICC(3) for (clinician_mean, claude_mean) and (clinician_mean, meditron_mean)
-6) Bootstraps ΔICC = ICC_claude - ICC_meditron with percentile 95% CI
+5) Computes ICC(3) for (clinician_mean, claude_mean) and (clinician_mean, model_mean)
+6) Bootstraps ΔICC = ICC_claude - ICC_model with percentile 95% CI
 
 Usage example:
 python bootstrap_icc_diff.py \
@@ -20,9 +20,9 @@ python bootstrap_icc_diff.py \
   --claude_jsonl /path/claude_results_v3.jsonl \
   --claude_answer_key orig_response \
   --claude_response_key response \
-  --meditron_jsonl /path/output_with_generated-v10.jsonl \
-  --meditron_answer_key orig_response \
-  --meditron_generation_key raw_generation \
+  --model_jsonl /path/output_with_generated-v10.jsonl \
+  --model_answer_key orig_response \
+  --model_generation_key raw_generation \
   --n_boot 5000
 
 Dependencies:
@@ -211,36 +211,24 @@ def load_clinicians_csv(path: str, answer_key: str, score_key: str) -> pd.DataFr
     """
     df = pd.read_csv(path)
 
-    #if answer_key not in df.columns:
-     #   raise ValueError(f"{answer_key} not found in clinician CSV columns: {df.columns}")
-
-    #if score_key not in df.columns:
-     #   raise ValueError(f"{score_key} not found in clinician CSV columns: {df.columns}")
     score_cols = [
     'Score_Alignment_with_guidelines',
     'Score_Relevance_and_completeness',
     'Score Harmlessness'
-    #'First Alignment with guidelines',
-    #'First Relevance & completeness',
-    #'First Harmlessness',
     ]
 
     # Mean across the 3 criteria
     df["clinician_mean"] = df[score_cols].mean(axis=1)
     
     df_agg = df[["Answer", "clinician_mean"]].dropna(subset=["clinician_mean"])
-    #df_agg = (
-       # df.groupby(answer_key, as_index=False)[score_key]
-      #  .mean()
-     #   .rename(columns={answer_key: "Answer", score_key: "clinician_mean"})
-    #)
+    
 
     return df_agg
 
 def load_claude_jsonl(path: str, answer_key: str, response_key: str) -> pd.DataFrame:
     """
     Load Claude judge JSONL. Expects:
-      - answer_key: key to join on (should match Meditron + clinicians), often "orig_response"
+      - answer_key: key to join on (should match model + clinicians), often "orig_response"
       - response_key: verbose judge text to parse, often "response"
     Returns one row per Answer with claude_mean.
     """
@@ -296,7 +284,6 @@ def load_gpt_jsonl(path: str, answer_key: str, response_key: str) -> pd.DataFram
                 mean_score = (alignment + relevance + harmlessness) / 3
             else:
                 mean_score = None
-        #gpt_scores.append(harmlessness)
             gpt_scores.append(mean_score)
 
     df_scores = pd.read_json("/work/PRTNR/CHUV/DIR/jraisaro/llm4chuv/LLM_Judge/dataset_ref_based_scores_test.jsonl", lines=True)
@@ -309,12 +296,12 @@ def load_gpt_jsonl(path: str, answer_key: str, response_key: str) -> pd.DataFram
     return df
 
 
-def load_meditron_jsonl(path: str, answer_key: str, generation_key: str) -> pd.DataFrame:
+def load_model_jsonl(path: str, answer_key: str, generation_key: str) -> pd.DataFrame:
     """
-    Load Meditron judge JSONL. Expects:
+    Load model judge JSONL. Expects:
       - answer_key: key to join on, often "orig_response"
       - generation_key: generation text containing `"Score": <number>`, often "raw_generation"
-    Returns one row per Answer with meditron_mean (float).
+    Returns one row per Answer with model_mean (float).
     """
     rows = []
     n_fail = 0
@@ -334,10 +321,10 @@ def load_meditron_jsonl(path: str, answer_key: str, generation_key: str) -> pd.D
             if score is None:
                 n_fail += 1
 
-            rows.append({"Answer": ans, "meditron_mean": score})
+            rows.append({"Answer": ans, "model_mean": score})
 
     df = pd.DataFrame(rows)
-    print(f"[Meditron] Loaded {len(df)} rows. Parsing failures (no Score or missing keys): {n_fail}")
+    print(f"[model] Loaded {len(df)} rows. Parsing failures (no Score or missing keys): {n_fail}")
     return df
 
 
@@ -354,9 +341,9 @@ def main():
     ap.add_argument("--claude_answer_key", default="orig_response")
     ap.add_argument("--claude_response_key", default="response")
 
-    ap.add_argument("--meditron_jsonl", required=True)
-    ap.add_argument("--meditron_answer_key", default="orig_response")
-    ap.add_argument("--meditron_generation_key", default="raw_generation")
+    ap.add_argument("--model_jsonl", required=True)
+    ap.add_argument("--model_answer_key", default="orig_response")
+    ap.add_argument("--model_generation_key", default="raw_generation")
 
     ap.add_argument("--n_boot", type=int, default=5000)
     ap.add_argument("--seed", type=int, default=42)
@@ -369,13 +356,13 @@ def main():
     print(df_clin)
     #df_claude = load_claude_jsonl(args.claude_jsonl, args.claude_answer_key, args.claude_response_key)
     df_claude = load_gpt_jsonl(args.claude_jsonl, args.claude_answer_key, args.claude_response_key)
-    df_medi = load_meditron_jsonl(args.meditron_jsonl, args.meditron_answer_key, args.meditron_generation_key)
+    df_medi = load_model_jsonl(args.model_jsonl, args.model_answer_key, args.model_generation_key)
     print(df_medi)
     print([repr(c) for c in df_medi.columns])
     df_medi_agg = (
         df_medi
         .groupby("Answer", as_index=False)
-        .agg(meditron_mean=("meditron_mean", "mean"))
+        .agg(model_mean=("model_mean", "mean"))
     )
     df_claude_agg = (
         df_claude
@@ -388,7 +375,7 @@ def main():
         df_clin
         .merge(df_claude_agg, on="Answer", how="inner")
         .merge(df_medi_agg, on="Answer", how="inner")
-        .dropna(subset=["clinician_mean", "claude_mean", "meditron_mean"])
+        .dropna(subset=["clinician_mean", "claude_mean", "model_mean"])
     )
 
     print(f"[Merge] Rows after merge+dropna: {len(df)}")
@@ -402,7 +389,7 @@ def main():
     res = bootstrap_icc_diff(
         df,
         modelA_col="claude_mean",
-        modelB_col="meditron_mean",
+        modelB_col="model_mean",
         human_col="clinician_mean",
         target_col="Answer",
         n_boot=args.n_boot,
@@ -411,8 +398,8 @@ def main():
 
     print("\n=== Results ===")
     print(f"ICC(3) clinician vs Claude   : {res['icc_modelA']:.4f}")
-    print(f"ICC(3) clinician vs Meditron : {res['icc_modelB']:.4f}")
-    print(f"ΔICC (Claude - Meditron)     : {res['diff_A_minus_B']:.4f}")
+    print(f"ICC(3) clinician vs model : {res['icc_modelB']:.4f}")
+    print(f"ΔICC (Claude - model)     : {res['diff_A_minus_B']:.4f}")
     print(f"95% CI (percentile bootstrap): [{res['ci_low']:.4f}, {res['ci_high']:.4f}]")
     print(f"Significant (CI excludes 0)  : {res['significant']}")
 
