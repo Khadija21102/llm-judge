@@ -196,7 +196,7 @@ class MultiTaskMistralClassifier(PreTrainedModel):
 
         if attention_mask is not None:
             lengths = attention_mask.sum(dim=1) - 1  # (batch,)
-            lengths = lengths.to(hidden_states.device).long()  # <-- key fix
+            lengths = lengths.to(hidden_states.device).long()  
             batch_indices = torch.arange(
                 hidden_states.size(0), device=hidden_states.device
             )
