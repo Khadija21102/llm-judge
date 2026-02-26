@@ -86,11 +86,6 @@ def tokenize_and_format(example: Dict[str, Any], tokenizer: AutoTokenizer):
     return enc
 
 if __name__ == "__main__":
-    # Safer CUDA print
-    if torch.cuda.is_available():
-        print("CUDA device:", torch.cuda.get_device_name(0))
-    else:
-        print("No CUDA available, running on CPU")
 
     os.makedirs(args.output_dir, exist_ok=True)
 
@@ -133,7 +128,6 @@ if __name__ == "__main__":
             bnb_4bit_use_double_quant=True,
         )
 
-    # dtype: bf16 only if CUDA is available, otherwise float32
     use_bf16 = torch.cuda.is_available()
 
     model = AutoModelForSequenceClassification.from_pretrained(
