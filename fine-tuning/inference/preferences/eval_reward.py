@@ -4,25 +4,9 @@ Reward model inference for MedGemma 27B (SeqCls num_labels=1) + LoRA adapters.
 
 Examples
 --------
-1) Score a single response:
+)1 Batch JSONL (expects keys: instruction, response_a, response_b):
   python rm_infer.py \
     --base_model google/medgemma-27b-text-it \
-    --adapter_dir ./rm-medgemma27b \
-    --instruction "..." \
-    --response "..."
-
-2) Compare A vs B:
-  python rm_infer.py \
-    --base_model google/medgemma-27b-text-it \
-    --adapter_dir ./rm-medgemma27b \
-    --instruction "..." \
-    --response_a "..." \
-    --response_b "..."
-
-3) Batch JSONL (expects keys: instruction, response_a, response_b):
-  python rm_infer.py \
-    --base_model google/medgemma-27b-text-it \
-    --adapter_dir ./rm-medgemma27b \
     --input_jsonl data.jsonl \
     --out_jsonl scored.jsonl \
     --instruction_key instruction \
@@ -43,16 +27,7 @@ from peft import PeftModel
 def parse_args():
     p = argparse.ArgumentParser()
     p.add_argument("--base_model", type=str, default="pref-reward-model-v11", help="HF base model id.")
-    #p.add_argument("--adapter_dir", type=str, required=True, help="Directory with LoRA adapters + tokenizer files.")
     p.add_argument("--max_length", type=int, default=2048)
-
-    # Single / compare mode
-    p.add_argument("--instruction", type=str, default=None)
-    p.add_argument("--response", type=str, default=None)
-    p.add_argument("--response_a", type=str, default=None)
-    p.add_argument("--response_b", type=str, default=None)
-
-    # Batch mode
     p.add_argument("--input_jsonl", type=str, default="dataset_ref_based_pref_test.jsonl")
     p.add_argument("--out_jsonl", type=str, default="pref-reward-model-v11/inference.jsonl")
     p.add_argument("--instruction_key", type=str, default="instruction")
@@ -111,9 +86,6 @@ def score_texts(model, tokenizer, prompts: List[str], responses: List[str], max_
         padding=True,
         return_tensors="pt",
     )
-    # Move to model device(s). device_map="auto" => enc tensors must be on first device.
-    # The safe approach is to move to model.device if single-device;
-    # for multi-device, transformers handles internally, but inputs should be on the first device.
     first_device = next(model.parameters()).device
     enc = {k: v.to(first_device) for k, v in enc.items()}
 
@@ -129,21 +101,6 @@ def compare(model, tokenizer, instruction: str, a: str, b: str, max_length: int)
     ra, rb = float(rewards[0]), float(rewards[1])
     winner = "A" if ra >= rb else "B"
     return ra, rb, winner
-
-
-def run_single(args, model, tokenizer):
-    if args.response is not None:
-        prompt = format_prompt(args.instruction or "")
-        r = score_texts(model, tokenizer, [prompt], [args.response], args.max_length)
-        print(json.dumps({"reward": float(r[0])}, ensure_ascii=False))
-        return
-
-    if args.response_a is not None and args.response_b is not None:
-        ra, rb, win = compare(model, tokenizer, args.instruction or "", args.response_a, args.response_b, args.max_length)
-        print(json.dumps({"reward_a": ra, "reward_b": rb, "winner": win}, ensure_ascii=False))
-        return
-
-    raise SystemExit("Provide either --response OR both --response_a and --response_b (and --instruction).")
 
 
 def run_batch(args, model, tokenizer):
@@ -205,11 +162,6 @@ def main():
     if args.input_jsonl and args.out_jsonl:
         run_batch(args, model, tokenizer)
         return
-
-    # Single mode
-    if args.instruction is None:
-        raise SystemExit("Single/compare mode requires --instruction.")
-    run_single(args, model, tokenizer)
 
 
 if __name__ == "__main__":
