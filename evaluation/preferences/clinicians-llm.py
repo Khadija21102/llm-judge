@@ -14,7 +14,6 @@ Supported models via --model:
   - gpt
   - claude
   - llama
-  - jury (placeholder; handle later)
 
 External parser requirement:
   For models other than fine-tuning, this script imports a module named:
@@ -23,7 +22,7 @@ External parser requirement:
       parse_<model>(record) -> (response_A, response_B, llm_result)
   where llm_result is one of: 'A', 'B', 'Tie', or None.
 
-Score-field:
+Score-field: the field in the jsonl file that contains the preferred answer
     
 Clinician CSV:
   Must contain A/B texts and a preference indicator. Two supported schemas:
@@ -37,20 +36,13 @@ Clinician preference per pair is aggregated by majority vote: A/B/Tie.
 Metrics (--metric):
   - accuracy : exact match rate between clinician_result and llm_result (ties removed)
   - kappa    : Cohen's kappa (ties removed)
-  - icc      : ICC3 on mapped ratings A->1, B->0 (ties removed)
+  - icc      : ICC3,k on mapped ratings A->1, B->0 (ties removed)
 
 Examples:
   Fine-tuning:
     python new_pers-clinicians-llm-pref.py --model fine-tuning --llm_jsonl inference.jsonl \
-      --clinician_csv df_evaluation_pref.csv --metric icc
+      --clinician_csv df_evaluation_pref.csv --metric icc --score_field pred_scores
 
-  Meditron:
-    python new_pers-clinicians-llm-pref.py --model meditron --llm_jsonl meditron_pref.jsonl \
-      --clinician_csv df_evaluation_pref.csv --metric kappa_w
-
-  GPT (needs ref_jsonl for response_A/B):
-    python new_pers-clinicians-llm-pref.py --model gpt --llm_jsonl gpt_pref.jsonl \
-      --ref_jsonl dataset_ref_based_pref_test.jsonl --clinician_csv df_evaluation_pref.csv --metric accuracy
 ===============================================================================
 """
 
