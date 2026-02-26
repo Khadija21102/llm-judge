@@ -18,9 +18,6 @@ def parse_args():
 
     return parser.parse_args()
 
-# =========================
-# CONFIG — EDIT HERE ONLY
-# =========================
 
 DEVICE = "cuda"          
 MAX_NEW_TOKENS = 150
