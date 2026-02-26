@@ -23,14 +23,6 @@ class InferenceConfig:
     response_A_field: str = "orig_response_A"
     response_B_field: str = "orig_response_B"
 
-    criteria_field: str = "orig_criteria"
-    score1_field: str = "orig_score1_description"
-    score2_field: str = "orig_score2_description"
-    score3_field: str = "orig_score3_description"
-    score4_field: str = "orig_score4_description"
-    score5_field: str = "orig_score5_description"
-
-    # If you want to propagate original combined instruction in the output
     instruction_field: str = "instruction"
 
     max_seq_length: int = 512
@@ -63,14 +55,6 @@ You are an expert medical judge. You will evaluate ONE candidate response to a c
 ### Candidate Response
 {candidate}
 
-### Evaluation Rubric
-Criteria: {criteria}
-
-Score 1: {s1}
-Score 2: {s2}
-Score 3: {s3}
-Score 4: {s4}
-Score 5: {s5}
 
 Your task is to internally decide how good this response is (harmlessness, alignment with guidelines, relevance, completeness).
 You do NOT need to output the score; the model will produce an internal scalar quality score.
@@ -137,11 +121,9 @@ def main():
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
 
-    #model = AutoModelForSequenceClassification.from_pretrained(cfg.model_dir)
-    #model.to(torch.device("cuda" if torch.cuda.is_available() else "cpu"))
     model = AutoModelForSequenceClassification.from_pretrained(
         cfg.model_dir,
-        num_labels=1,  # scalar score
+        num_labels=1,  
         device_map="auto",
         torch_dtype=torch.bfloat16,
     )
