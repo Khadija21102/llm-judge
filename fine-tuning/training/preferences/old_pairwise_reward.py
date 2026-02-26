@@ -27,13 +27,6 @@ class FinetuneConfig:
     response_B_field: str = "orig_response_B"
     winner_field: str = "output"  # "A" or "B"
 
-    criteria_field: str = "orig_criteria"
-    score1_field: str = "orig_score1_description"
-    score2_field: str = "orig_score2_description"
-    score3_field: str = "orig_score3_description"
-    score4_field: str = "orig_score4_description"
-    score5_field: str = "orig_score5_description"
-
     # --- model ---
     model_name: str = "google/medgemma-4b-it"  # swap later for Mistral/Med model
     max_seq_length: int = 2048
@@ -55,12 +48,6 @@ cfg = FinetuneConfig()
 def build_single_prompt(example: Dict[str, Any], which: str) -> str:
     """Prompt for ONE candidate response (A or B)."""
     question = example.get(cfg.question_field, "")
-    criteria = example.get(cfg.criteria_field, "")
-    s1 = example.get(cfg.score1_field, "")
-    s2 = example.get(cfg.score2_field, "")
-    s3 = example.get(cfg.score3_field, "")
-    s4 = example.get(cfg.score4_field, "")
-    s5 = example.get(cfg.score5_field, "")
 
     if which == "A":
         candidate = example[cfg.response_A_field]
@@ -75,15 +62,6 @@ You are an expert medical judge. You will evaluate ONE candidate response to a c
 
 ### Candidate Response
 {candidate}
-
-### Evaluation Rubric
-Criteria: {criteria}
-
-Score 1: {s1}
-Score 2: {s2}
-Score 3: {s3}
-Score 4: {s4}
-Score 5: {s5}
 
 Your task is to internally decide how good this response is (harmlessness, alignment with guidelines, relevance, completeness).
 You do NOT need to output the score; the model will learn an internal scalar quality score.
@@ -103,7 +81,7 @@ def preprocess_pairwise(example: Dict[str, Any], tokenizer) -> Dict[str, Any]:
     prompt_A = build_single_prompt(example, "A")
     prompt_B = build_single_prompt(example, "B")
 
-    # 🔁 Randomly swap order to avoid positional bias
+    # Randomly swap order to avoid positional bias
     if random.random() < 0.5:
         prompt_A, prompt_B = prompt_B, prompt_A
         winner = -winner  # if swapped, invert
