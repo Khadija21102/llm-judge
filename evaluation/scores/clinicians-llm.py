@@ -19,7 +19,6 @@ SUPPORTED MODELS
     claude       → Uses external parser: parse_claude.py
     gpt          → Uses external parser: parse_gpt.py
     llama        → Uses external parser: parse_llama.py
-    jury         → Reserved (not yet fully implemented in this unified script)
 
 For all models except "fine-tuning", a file named:
 
@@ -118,7 +117,6 @@ NOTES
 
 • Matching between LLM and clinicians is done via the "Answer" column.
 • All LLM parsers must return (answer, score).
-• Scores are coerced to numeric before aggregation.
 • ICC requires at least 2 shared answers per clinician.
 • Kappa uses quadratic weighting.
 
@@ -221,7 +219,7 @@ def main():
     df = pd.read_csv(args.clinician_csv)
 
     if args.model == "fine-tuning":
-        parse_fn = None  # use built-in parsing logic
+        parse_fn = None  
     else:
         parse_fn = load_external_parser(args.model)
     with open(args.llm_jsonl, "r") as file:
