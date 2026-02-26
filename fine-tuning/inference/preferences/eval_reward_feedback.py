@@ -22,10 +22,6 @@ Usage:
     --out_jsonl /path/to/output_scored.jsonl \
     --max_new_tokens 256 \
     --batch_size 1
-
-Notes:
-- This script assumes the model is a CausalLM fine-tuned without LoRA (full FT).
-- If you used DeepSpeed ZeRO-3 for training, you should run inference from a consolidated checkpoint.
 """
 
 import argparse
@@ -52,9 +48,9 @@ def parse_args():
     p.add_argument("--max_new_tokens", type=int, default=256)
     p.add_argument("--batch_size", type=int, default=1)
 
-    p.add_argument("--temperature", type=float, default=0.0)  # 0 => greedy (deterministic)
+    p.add_argument("--temperature", type=float, default=0.0) 
     p.add_argument("--top_p", type=float, default=1.0)
-    p.add_argument("--device_map", type=str, default="auto")  # "auto" recommended
+    p.add_argument("--device_map", type=str, default="auto") 
     return p.parse_args()
 
 
@@ -125,7 +121,6 @@ def parse_generation(text: str) -> Tuple[Optional[str], Optional[float], Optiona
     m = _FEEDBACK_RE.search(text)
     if m:
         feedback = m.group(1).strip()
-        # If the model repeats other fields inside feedback, keep it but you can post-clean here if you want.
 
     # If winner exists but score missing, derive a default.
     if winner in ("A", "B") and score is None:
