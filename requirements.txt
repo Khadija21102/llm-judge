@@ -1,0 +1,7 @@
+transformers[sentencepiece]==4.57.3
+datasets
+peft
+trl
+torch
+torchvision
+accelerate

@@ -1,0 +1,23 @@
+You are a medical expert tasked with evaluating the quality of a generated clinical note based on a doctor - patient conversation .
+Your goal is to assess how well the note captures the clinical information from the conversation and
+compare it to the reference note ( gold standard ), use it to determine which of the 2 provided responses is better. The better response is the one which is aligned with the guidelines, relevant, complete and harmfullness. The conversation will be provided in these tags :
+< conversation >{{ instruction }} </ conversation >
+The first generated note will be provided in these tags :
+< response_A >{{ response_A }} </ response_A >
+The second generated note will be provided in these tags :
+< response_B >{{ response_B }} </ response_B >
+The reference note will be provided in these tags :
+< gold_response >{{ gold_reponse }} </ gold_response >
+Carefully review < response_A > and < response_B > based on the < conversation > and compare it to the < gold_response > when needed .
+Provide a preferred response.
+Output Format :
+Output the evaluation as a single valid JSON object matching the
+following structure :
+{" Answer ": "A" or "B" ," explanation ":" Explain why this response was
+given ."} 
+Ensure the output is valid JSON :
+- Use ** double quotes ** (") for all keys and string values .
+- When quoting text or sections inside the explanations , use
+escaped double quotes (\") to
+maintain valid JSON formatting .
+- Do not include any additional information in the output .
