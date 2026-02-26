@@ -28,7 +28,7 @@ class FinetuneConfig:
     winner_field: str = "output"  # "A" or "B"
 
     # --- model ---
-    model_name: str = "google/medgemma-4b-it"  # swap later for Mistral/Med model
+    model_name: str = "google/medgemma-4b-it" 
     max_seq_length: int = 2048
 
     # --- training ---
@@ -75,7 +75,6 @@ def preprocess_pairwise(example: Dict[str, Any], tokenizer) -> Dict[str, Any]:
     winner: +1 if first is better, -1 if second is better (after random swap).
     """
     winner_str = example[cfg.winner_field]  # "A" or "B"
-    # initial interpretation: A better => +1, B better => -1
     winner = 1 if winner_str == "A" else -1
 
     prompt_A = build_single_prompt(example, "A")
@@ -142,7 +141,6 @@ def train_and_eval():
     # --- Tokenizer & model ---
     tokenizer = AutoTokenizer.from_pretrained(cfg.model_name, use_fast=True)
 
-    # For decoder-only models (Mistral, LLaMA, etc.) you MUST set pad_token
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
 
