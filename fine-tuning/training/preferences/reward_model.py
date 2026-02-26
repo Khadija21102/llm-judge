@@ -6,8 +6,6 @@ Train a reward model (pairwise preference) using MedGemma 27B as base model.
     instruction, orig_response_A, orig_response_B, output (A/B)
 - Converts to TRL format: prompt, chosen, rejected
 - Trains with TRL RewardTrainer
-- Uses QLoRA (4-bit) + LoRA adapters to fit large models on limited GPUs
-
 Example:
   python train_reward_model_medgemma27b.py \
     --train_jsonl /path/to/dataset_ref_based_pref_train_clean_with_explanations.jsonl \
@@ -82,7 +80,6 @@ def normalize_label(x):
         if v in {"A", "B"}:
             return v
     if isinstance(x, (int, float)) and not (isinstance(x, float) and math.isnan(x)):
-        # some datasets use 0/1
         if int(x) == 0:
             return "A"
         if int(x) == 1:
@@ -192,7 +189,6 @@ def main():
         logging_steps=args.logging_steps,
         save_steps=args.save_steps,
         eval_steps=args.eval_steps,
-        #evaluation_strategy="steps" if eval_ds is not None else "no",
         save_strategy="steps",
         bf16=True,
         fp16=False,
