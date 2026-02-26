@@ -6,3 +6,4 @@ In this folder you can find various methods that can be useful for your pipeline
 - extract_scores is called during the evaluation of models that returns 3d scores, it is called during the evaluation phase when 3-score is selected as the file type
 - self_consistency.py creates a new file that contains the mean score of different runs of the same samples
 - data_preprocessing.ipynb various modification on the data, creation of the files for the prompts
+- bootstrap.py calculates the statistical significance of the ICC scores between 2 models
