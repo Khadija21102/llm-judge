@@ -48,7 +48,6 @@ def tokenize_and_format(example: Dict[str, Any], tokenizer: AutoTokenizer):
 
     score = example[output_field]
     if isinstance(score, list):
-        # adapt this if you used a list and collapsed it during training
         raise ValueError(f"Expected a single score, got list: {score}")
 
     enc["labels"] = float(score)
@@ -88,7 +87,6 @@ if __name__ == "__main__":
         remove_columns=eval_ds.column_names,
     )
 
-    # Dummy training args (we won't train, just evaluate)
     training_args = TrainingArguments(
         output_dir=os.path.join(args.model_dir, "eval_tmp"),
         per_device_eval_batch_size=args.batch_size,
