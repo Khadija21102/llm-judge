@@ -67,7 +67,7 @@ class FinetuneConfig:
 
     # Precision
     fp16: bool = False
-    bf16: bool = True  # set False if your GPU doesn't support bf16
+    bf16: bool = True 
 
     # Optional resume
     resume_from_checkpoint: str = None
@@ -91,8 +91,7 @@ def build_prompt_only(example: Dict[str, Any], cfg: FinetuneConfig) -> str:
     """
     instruction = str(example.get(cfg.instruction_field, "")).strip()
 
-    # If your `instruction` already contains the whole template + response + ref + rubric,
-    # this just adds a consistent "now output JSON" instruction and a marker.
+	# change prompt according to 1 score or 3 score
     prompt = (
         instruction
         + "\n\n"
@@ -109,6 +108,7 @@ def build_target_json(example: Dict[str, Any], cfg: FinetuneConfig) -> str:
     Target is strictly JSON (single object).
     """
     feedback = str(example.get(cfg.feedback_field, "")).strip()
+	# change according to 1 score or 3 score
     score_int = _score_to_int_1_5(example.get(cfg.score_field, None))
     #score_int = []
     #for i in example.get(cfg.score_field,None):
@@ -151,7 +151,7 @@ def make_preprocess_fn(tokenizer: AutoTokenizer, cfg: FinetuneConfig):
         )
         tok_t = tokenizer(
             targets,
-            add_special_tokens=False,  # don't add BOS for target
+            add_special_tokens=False,  
             truncation=True,
             max_length=cfg.max_seq_length,
             padding=False,
@@ -232,7 +232,7 @@ def main():
         fp16=cfg.fp16,
         report_to="none",
         metric_for_best_model="spearman",
-        remove_unused_columns=False,  # IMPORTANT since we already mapped to model inputs
+        remove_unused_columns=False, 
     )
 
     trainer = Trainer(
@@ -243,8 +243,6 @@ def main():
         tokenizer=tokenizer,
         #processing_class=tokenizer,
         data_collator=default_data_collator,
-        #compute_metrics=compute_metrics_fn,
-        #callbacks=[EarlyStoppingCallback(early_stopping_patience=3)]
     )
 
     trainer.train(resume_from_checkpoint=cfg.resume_from_checkpoint)
