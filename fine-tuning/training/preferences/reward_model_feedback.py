@@ -22,8 +22,8 @@ Train text format:
 ### Feedback:
 ...
 
-Run with DeepSpeed:
-  deepspeed --num_gpus 8 train_answer_feedback_fullft.py \
+Run with :
+  python reward_model_feedback.py \
     --train_jsonl /path/to/dataset_ref_based_pref_train_clean_with_explanations.jsonl \
     --model_id google/medgemma-27b-text-it \
     --output_dir ./fullft-medgemma-answer-feedback \
@@ -32,7 +32,6 @@ Run with DeepSpeed:
     --gradient_accumulation_steps 16 \
     --learning_rate 1e-5 \
     --num_train_epochs 1 \
-    --deepspeed ds_zero3_bf16.json
 """
 
 import argparse
@@ -75,8 +74,6 @@ def parse_args():
     p.add_argument("--label_key", type=str, default="output")  # "A"/"B" or 0/1
     p.add_argument("--explanation_key", type=str, default="explanation")
 
-    # Optional deepspeed arg passthrough (Transformers uses it from CLI)
-    p.add_argument("--deepspeed", type=str, default=None)
     return p.parse_args()
 
 
@@ -163,9 +160,8 @@ def main():
         logging_steps=args.logging_steps,
         save_steps=args.save_steps,
         eval_steps=args.eval_steps,
-        #evaluation_strategy="steps" if eval_ds is not None else "no",
         save_strategy="steps",
-        bf16=True,         # switch to fp16=True if your GPUs don't support bf16
+        bf16=True,        
         fp16=False,
         report_to="none",
         seed=args.seed,
