@@ -71,7 +71,7 @@ score_cols = [
     "First Answer Relevance & Completeness",
     "First Answer Harmlessness",
 ]
-# Z-normalize within each clinician ("Name")
+# uncomment the following if you want to Z-normalize within each clinician user_id
 df[score_cols] = df.groupby("User ID")[score_cols].transform(
     lambda x:x
     #(x - x.mean()) / x.std(ddof=0)
