@@ -24,7 +24,6 @@ def icc3k_two_raters(df_wide, target_col, r1_col, r2_col, min_items=2):
         value_name="rating",
     )
 
-    # Pingouin can become unstable with tiny samples; keep a guardrail
     if df_long[target_col].nunique() < min_items:
         return None
 
@@ -68,11 +67,8 @@ def bootstrap_mean_ci(values, n_boot=1000, alpha=0.05, seed=0):
 df = pd.read_csv("/work/PRTNR/CHUV/DIR/jraisaro/llm4chuv/LLM_Judge/CHUV_2025-09-29_pseudononym_KT_v2.csv")
 
 # Encode preference as 1 = A (First Answer), 0 = B (Second Answer)
-# Adjust this mapping if your dataset uses different Vote semantics.
 df["pref01"] = df["Vote"].apply(lambda x: 1 if x == 1 else 0).astype(float)
 
-# IMPORTANT for preferences: the "item" is the PAIR (A,B), not the chosen answer text.
-# If you have a true unique id column for the duel/pair, use it instead.
 df["item_id"] = (
     df["First Answer"].astype(str).str.strip()
     + " ||| "
@@ -86,7 +82,6 @@ pref_df = (
     df[["item_id", "rater", "pref01"]]
     .dropna(subset=["item_id", "rater", "pref01"])
     .groupby(["item_id", "rater"], as_index=False)["pref01"]
-    # if duplicates exist, average then round back to 0/1 (majority vote)
     .mean()
 )
 pref_df["pref01"] = (pref_df["pref01"] >= 0.5).astype(float)
