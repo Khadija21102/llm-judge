@@ -24,6 +24,7 @@ def compute_icc3k_from_two_columns(df_wide, target_col="answer", r1_col="r1", r2
     )
 
     # With 2 raters, len(df_long) = 2 * n_items
+    # Small n can make ICC unstable; keep your guardrail
     if len(df_long) < 5:
         return None
 
@@ -41,7 +42,16 @@ def compute_icc3k_from_two_columns(df_wide, target_col="answer", r1_col="r1", r2
         return None
 
     return None
-
+def compute_mse_from_two_columns(df_wide, r1_col="r1", r2_col="r2"):
+    """
+    Mean Squared Error between two columns (after dropping NaNs).
+    Returns float or None if cannot compute.
+    """
+    sub = df_wide.dropna(subset=[r1_col, r2_col])
+    if len(sub) == 0:
+        return None
+    mse = np.mean((sub[r1_col].to_numpy(dtype=float) - sub[r2_col].to_numpy(dtype=float)) ** 2)
+    return float(mse) if np.isfinite(mse) else None
 
 def bootstrap_mean_ci(values, n_boot=1000, alpha=0.05, seed=0):
     """Bootstrap CI for the mean of a list/array."""
@@ -71,7 +81,8 @@ score_cols = [
     "First Answer Relevance & Completeness",
     "First Answer Harmlessness",
 ]
-# uncomment the following if you want to Z-normalize within each clinician user_id
+print(df.columns)
+# Z-normalize within each clinician ("Name")
 df[score_cols] = df.groupby("User ID")[score_cols].transform(
     lambda x:x
     #(x - x.mean()) / x.std(ddof=0)
@@ -116,7 +127,7 @@ pair_mean, pair_ci = bootstrap_mean_ci(pair_iccs, n_boot=1000, seed=1)
 # 2) Clinician vs leave-one-out consensus ICC (avg over clinicians)
 # -----------------------------
 consensus_iccs = []
-
+consensus_mses = []
 # Pre-split per rater for speed
 by_rater = {r: clin_df[clin_df["rater"] == r][["answer", "mean_score"]] for r in clinicians}
 
@@ -139,9 +150,12 @@ for r in clinicians:
     icc_val = compute_icc3k_from_two_columns(merged, target_col="answer", r1_col="r1", r2_col="r2")
     if icc_val is not None:
         consensus_iccs.append(icc_val)
+    mse_val = compute_mse_from_two_columns(merged, r1_col="r1", r2_col="r2")
+    if mse_val is not None:
+        consensus_mses.append(mse_val)
 
-cons_mean, cons_ci = bootstrap_mean_ci(consensus_iccs, n_boot=1000, seed=2)
-
+cons_mean, cons_ci = bootstrap_mean_ci(consensus_iccs, n_boot=500, seed=2)
+mse_mean, mse_ci = bootstrap_mean_ci(consensus_mses, n_boot=500, seed=3)
 # -----------------------------
 # Print results
 # -----------------------------
@@ -155,3 +169,7 @@ print(f"n_clinicians_used: {len(consensus_iccs)} / {len(clinicians)}")
 print(f"Mean ICC3k: {cons_mean:.3f}")
 print(f"95% bootstrap CI: [{cons_ci[0]:.3f}, {cons_ci[1]:.3f}]")
 
+print("\n=== Clinician vs Leave-One-Out Consensus MSE (avg over clinicians) ===")
+print(f"n_clinicians_used: {len(consensus_mses)} / {len(clinicians)}")
+print(f"Mean MSE: {mse_mean:.3f}")
+print(f"95% bootstrap CI: [{mse_ci[0]:.3f}, {mse_ci[1]:.3f}]")

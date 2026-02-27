@@ -24,6 +24,7 @@ def icc3k_two_raters(df_wide, target_col, r1_col, r2_col, min_items=2):
         value_name="rating",
     )
 
+    # Pingouin can become unstable with tiny samples; keep a guardrail
     if df_long[target_col].nunique() < min_items:
         return None
 
@@ -41,8 +42,40 @@ def icc3k_two_raters(df_wide, target_col, r1_col, r2_col, min_items=2):
         return None
 
     return None
+def loo_accuracy_pref(pref_df, item_col="item_id", rater_col="rater", pref_col="pref01", threshold=0.5):
+    """
+    Leave-one-out accuracy for 0/1 preferences.
+    For each rater, compare their 0/1 vote to the consensus (mean of others, thresholded).
+    Returns:
+      - per_rater_acc: dict {rater: accuracy}
+      - acc_values: list of accuracies (one per rater)
+    """
+    raters = pref_df[rater_col].unique()
+    per_rater_acc = {}
+    acc_values = []
 
+    for r in raters:
+        r_df = pref_df.loc[pref_df[rater_col] == r, [item_col, pref_col]].rename(columns={pref_col: "rater_pref"})
+        others = pref_df.loc[pref_df[rater_col] != r, [item_col, pref_col]]
 
+        consensus = (
+            others.groupby(item_col, as_index=False)[pref_col]
+            .mean()
+            .rename(columns={pref_col: "consensus_mean"})
+        )
+
+        m = pd.merge(r_df, consensus, on=item_col, how="inner").dropna(subset=["rater_pref", "consensus_mean"])
+        if len(m) == 0:
+            continue
+
+        consensus_label = (m["consensus_mean"].to_numpy(dtype=float) >= threshold).astype(int)
+        rater_label = (m["rater_pref"].to_numpy(dtype=float) >= 0.5).astype(int)  # since pref01 is already 0/1
+
+        acc = float(np.mean(rater_label == consensus_label))
+        per_rater_acc[r] = acc
+        acc_values.append(acc)
+
+    return per_rater_acc, acc_values
 def bootstrap_mean_ci(values, n_boot=1000, alpha=0.05, seed=0):
     """Bootstrap CI for the mean of a list/array (ignores NaNs)."""
     values = np.asarray(values, dtype=float)
@@ -67,8 +100,11 @@ def bootstrap_mean_ci(values, n_boot=1000, alpha=0.05, seed=0):
 df = pd.read_csv("/work/PRTNR/CHUV/DIR/jraisaro/llm4chuv/LLM_Judge/CHUV_2025-09-29_pseudononym_KT_v2.csv")
 
 # Encode preference as 1 = A (First Answer), 0 = B (Second Answer)
+# Adjust this mapping if your dataset uses different Vote semantics.
 df["pref01"] = df["Vote"].apply(lambda x: 1 if x == 1 else 0).astype(float)
 
+# IMPORTANT for preferences: the "item" is the PAIR (A,B), not the chosen answer text.
+# If you have a true unique id column for the duel/pair, use it instead.
 df["item_id"] = (
     df["First Answer"].astype(str).str.strip()
     + " ||| "
@@ -82,6 +118,7 @@ pref_df = (
     df[["item_id", "rater", "pref01"]]
     .dropna(subset=["item_id", "rater", "pref01"])
     .groupby(["item_id", "rater"], as_index=False)["pref01"]
+    # if duplicates exist, average then round back to 0/1 (majority vote)
     .mean()
 )
 pref_df["pref01"] = (pref_df["pref01"] >= 0.5).astype(float)
@@ -138,9 +175,12 @@ for r in raters:
     if icc_val is not None:
         loo_iccs.append(icc_val)
 
-loo_mean, loo_ci = bootstrap_mean_ci(loo_iccs, n_boot=1000, seed=2)
-
-
+loo_mean, loo_ci = bootstrap_mean_ci(loo_iccs, n_boot=500, seed=2)
+# -----------------------------
+# 3) Leave-one-out accuracy (clinician vs consensus label)
+# -----------------------------
+per_rater_acc, loo_accs = loo_accuracy_pref(pref_df, threshold=0.5)
+loo_acc_mean, loo_acc_ci = bootstrap_mean_ci(loo_accs, n_boot=1000, seed=3)
 # -----------------------------
 # Print
 # -----------------------------
@@ -157,4 +197,8 @@ print(f"clinicians total: {len(raters)}")
 print(f"clinicians used:  {len(loo_iccs)}")
 print(f"mean ICC3k:       {loo_mean:.3f}")
 print(f"95% CI:           [{loo_ci[0]:.3f}, {loo_ci[1]:.3f}]")
-
+print("\n--- Leave-one-out clinician vs consensus Accuracy ---")
+print(f"clinicians total: {len(raters)}")
+print(f"clinicians used:  {len(loo_accs)}")
+print(f"mean accuracy:    {loo_acc_mean:.3f}")
+print(f"95% CI:           [{loo_acc_ci[0]:.3f}, {loo_acc_ci[1]:.3f}]")
